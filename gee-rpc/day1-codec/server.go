@@ -119,6 +119,7 @@ func (server *Server) readRequest(cc codec.Codec) (*request, error) {
 }
 
 func (server *Server) sendResponse(cc codec.Codec, h *codec.Header, body interface{}, sending *sync.Mutex) {
+	// 加锁 控制同一个连接只有一个协成在写，避免客户端接收混乱
 	sending.Lock()
 	defer sending.Unlock()
 	if err := cc.Write(h, body); err != nil {
