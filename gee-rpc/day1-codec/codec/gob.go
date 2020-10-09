@@ -14,6 +14,7 @@ type GobCodec struct {
 	enc  *gob.Encoder
 }
 
+// 保证实现 Codec 接口
 var _ Codec = (*GobCodec)(nil)
 
 func NewGobCodec(conn io.ReadWriteCloser) Codec {

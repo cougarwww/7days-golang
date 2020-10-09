@@ -29,6 +29,7 @@ const (
 var NewCodecFuncMap map[Type]NewCodecFunc
 
 func init() {
+	// 服务端通过 option 的 CodeType 获取对应编解码方式
 	NewCodecFuncMap = make(map[Type]NewCodecFunc)
 	NewCodecFuncMap[GobType] = NewGobCodec
 }

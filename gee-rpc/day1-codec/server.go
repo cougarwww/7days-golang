@@ -42,6 +42,8 @@ var DefaultServer = NewServer()
 // ServeConn blocks, serving the connection until the client hangs up.
 func (server *Server) ServeConn(conn io.ReadWriteCloser) {
 	defer func() { _ = conn.Close() }()
+
+	// 服务端首先使用 JSON 解码 Option，然后通过 Option 得 CodeType 解码剩余的内容
 	var opt Option
 	if err := json.NewDecoder(conn).Decode(&opt); err != nil {
 		log.Println("rpc server: options error: ", err)
@@ -51,12 +53,14 @@ func (server *Server) ServeConn(conn io.ReadWriteCloser) {
 		log.Printf("rpc server: invalid magic number %x", opt.MagicNumber)
 		return
 	}
-	f := codec.NewCodecFuncMap[opt.CodecType]
-	if f == nil {
+
+	// 根据 CodeType 获取专用解码方式
+	codecFunc := codec.NewCodecFuncMap[opt.CodecType]
+	if codecFunc == nil {
 		log.Printf("rpc server: invalid codec type %s", opt.CodecType)
 		return
 	}
-	server.serveCodec(f(conn))
+	server.serveCodec(codecFunc(conn))
 }
 
 // invalidRequest is a placeholder for response argv when error occurs
@@ -71,8 +75,8 @@ func (server *Server) serveCodec(cc codec.Codec) {
 			if req == nil {
 				break // it's not possible to recover, so close the connection
 			}
-			req.h.Error = err.Error()
-			server.sendResponse(cc, req.h, invalidRequest, sending)
+			req.header.Error = err.Error()
+			server.sendResponse(cc, req.header, invalidRequest, sending)
 			continue
 		}
 		wg.Add(1)
@@ -84,7 +88,7 @@ func (server *Server) serveCodec(cc codec.Codec) {
 
 // request stores all information of a call
 type request struct {
-	h            *codec.Header // header of request
+	header       *codec.Header // header of request
 	argv, replyv reflect.Value // argv and replyv of request
 }
 
@@ -104,7 +108,7 @@ func (server *Server) readRequest(cc codec.Codec) (*request, error) {
 	if err != nil {
 		return nil, err
 	}
-	req := &request{h: h}
+	req := &request{header: h}
 	// TODO: now we don't know the type of request argv
 	// day 1, just suppose it's string
 	req.argv = reflect.New(reflect.TypeOf(""))
@@ -126,9 +130,9 @@ func (server *Server) handleRequest(cc codec.Codec, req *request, sending *sync.
 	// TODO, should call registered rpc methods to get the right replyv
 	// day 1, just print argv and send a hello message
 	defer wg.Done()
-	log.Println(req.h, req.argv.Elem())
-	req.replyv = reflect.ValueOf(fmt.Sprintf("geerpc resp %d", req.h.Seq))
-	server.sendResponse(cc, req.h, req.replyv.Interface(), sending)
+	log.Println(req.header, req.argv.Elem())
+	req.replyv = reflect.ValueOf(fmt.Sprintf("geerpc resp %d", req.header.Seq))
+	server.sendResponse(cc, req.header, req.replyv.Interface(), sending)
 }
 
 // Accept accepts connections on the listener and serves requests

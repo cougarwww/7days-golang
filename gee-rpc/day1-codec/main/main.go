@@ -36,12 +36,13 @@ func main() {
 	cc := codec.NewGobCodec(conn)
 	// send request & receive response
 	for i := 0; i < 5; i++ {
-		h := &codec.Header{
+		header := &codec.Header{
 			ServiceMethod: "Foo.Sum",
 			Seq:           uint64(i),
 		}
-		_ = cc.Write(h, fmt.Sprintf("geerpc req %d", h.Seq))
-		_ = cc.ReadHeader(h)
+		_ = cc.Write(header, fmt.Sprintf("geerpc req %d", header.Seq))
+		_ = cc.ReadHeader(header)
+
 		var reply string
 		_ = cc.ReadBody(&reply)
 		log.Println("reply:", reply)
